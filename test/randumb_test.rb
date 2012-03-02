@@ -1,6 +1,6 @@
 $:.unshift '.';require File.dirname(__FILE__) + '/test_helper'
 
-class TestRandumb < Test::Unit::TestCase
+class RandumbTest < Test::Unit::TestCase
   
   context "no records in the table" do
     setup do
