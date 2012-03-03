@@ -4,7 +4,7 @@ class RandumbTest < Test::Unit::TestCase
   
   context "no records in the table" do
     setup do
-      Artist.delete_all("id > -1")
+      Artist.delete_all
     end
     
     should "should return empty array" do
@@ -19,7 +19,7 @@ class RandumbTest < Test::Unit::TestCase
   
   context "1 record in the table" do
     setup do
-      Artist.delete_all("id > -1")
+      Artist.delete_all
       @high_on_fire = Artist.make!(:name => "High On Fire", :views => 1)
     end
     

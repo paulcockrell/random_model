@@ -8,7 +8,7 @@ module Randumb
     
     module Relation
       
-      def random(max_items = nil)
+      def random(max_items = nil, random_method = :random_ids_via_partial_fisher_yates)
         # return only the first record if method was called without parameters
         return_first_record = max_items.nil?
         max_items ||= 1
@@ -29,24 +29,12 @@ module Randumb
         id_only_relation = relation.select("#{table_name}.id")
         id_results = connection.select_all(id_only_relation.to_sql)
       
-        ids = {}
-      
-        # OLD WAY
-        # while( ids.length < max_items && ids.length < id_results.length )
-        #   rand_index = rand( id_results.length )
-        #   ids[rand_index] = id_results[rand_index]["id"] unless ids.has_key?(rand_index)
-        # end
-
-        # PROPOSED WAY
-        ids = id_results.shuffle[0,max_items].collect { |h| h['id'] }
+        ids = self.send(random_method, id_results, max_items)
 
         the_scope = klass.includes(original_includes)
         # specifying empty selects caused bug in rails 3.0.0/3.0.1
         the_scope = the_scope.select(original_selects) unless original_selects.empty? 
 
-        # OLD WAY
-        #records = the_scope.find_all_by_id(ids.values)
-        # PROPOSED WAY
         records = the_scope.find_all_by_id(ids)
                 
         if return_first_record
@@ -56,13 +44,62 @@ module Randumb
         end
       end
 
+      
+
+      def random_ids_via_shuffle(results, max_items)
+        results.shuffle[0,max_items].collect { |h| h['id'] }
+      end
+
+      def random_ids_via_hash(results, max_items)
+        ids = {}
+        while ids.length < max_items && ids.length < results.length 
+          rand_index = rand( results.length )
+          ids[rand_index] = results[rand_index]["id"]
+        end
+        ids.values
+      end
+
+      def random_ids_via_set(results, max_items)
+        ids = Set.new
+        while ids.length < max_items && ids.length < results.length 
+          ids << results[rand( results.length )]["id"]
+        end
+        ids.to_a
+      end
+
+      def ramdom_ids_via_delete_at(results, max_items)
+        ids = []
+        results_start_length = results.length
+        while ids.length < max_items && ids.length < results_start_length
+          ids << ( results.delete_at(rand( results.length ))["id"] )
+        end
+        ids
+      end
+
+      def random_ids_via_partial_fisher_yates(results, max_items)
+        i = 0
+        # perform swaps only as far as we need
+        while i < max_items && i < results.length
+          # select only from portion of set past current element
+          rand_i = i + rand( results.length - i ) 
+          # swap current element, and picked element
+          results[i], results[rand_i] = results[rand_i], results[i]
+          i += 1
+        end
+        results[0, max_items].collect { |h| h['id'] }
+      end
+
     end # Relation
     
     module Base
       
       # Class method
-      def random(max_items = nil)
-        relation.random(max_items)
+      def random(max_items = nil, random_method = nil)
+        if random_method
+          relation.random(max_items, random_method)
+        else
+          relation.random(max_items)
+        end
       end
       
     end # Base
