@@ -8,16 +8,16 @@ module Randumb
     
     module Relation
       
-      def random(max_items = nil, random_method = :random_ids_via_partial_fisher_yates)
-        # return only the first record if method was called without parameters
-        return_first_record = max_items.nil?
-        max_items ||= 1
+      def random(max_items = nil, method = :by_order_by)
+        send("random_#{method}", max_items)
+      end
 
-        # take out limit from relation to use later
-    
+      def random_original(max_items = nil)
+        return_first_record = max_items.nil? # see return switch at end
+        max_items ||= 1
         relation = clone
       
-        # store these for including at the end
+        # store these for including on final scope
         original_includes = relation.includes_values
         original_selects = relation.select_values
         
@@ -25,18 +25,28 @@ module Randumb
         relation.select_values = []
         relation.includes_values = []
       
-        # does their original query but only for id fields
+        # do original query but only for id field
         id_only_relation = relation.select("#{table_name}.id")
         id_results = connection.select_all(id_only_relation.to_sql)
       
-        ids = self.send(random_method, id_results, max_items)
-
+        # get requested number of random ids
+        if max_items == 1 && id_results.length > 0
+          ids = [ id_results[ rand(id_results.length) ]['id'] ]
+        else
+          ids = id_results.shuffle![0,max_items].collect!{ |h| h['id'] }
+        end
+  
+        # build scope for final query
         the_scope = klass.includes(original_includes)
+
         # specifying empty selects caused bug in rails 3.0.0/3.0.1
         the_scope = the_scope.select(original_selects) unless original_selects.empty? 
 
-        records = the_scope.find_all_by_id(ids)
+        # get the records and shuffle since the order of the ids
+        # passed to find_all_by_id isn't retained in the result set
+        records = the_scope.find_all_by_id(ids).shuffle!
                 
+        # return first record if method was called without parameters
         if return_first_record
           records.first
         else
@@ -44,49 +54,19 @@ module Randumb
         end
       end
 
-      
+      def random_by_order_by(max_items = nil)
+        return_first_record = max_items.nil? # see return switch at end
+        max_items ||= 1
+        relation = clone
+        
+        the_scope = relation.order("RANDOM()")
+        the_scope = the_scope.limit(max_items) unless relation.limit_value && relation.limit_value < max_items
 
-      def random_ids_via_shuffle(results, max_items)
-        results.shuffle[0,max_items].collect { |h| h['id'] }
-      end
-
-      def random_ids_via_hash(results, max_items)
-        ids = {}
-        while ids.length < max_items && ids.length < results.length 
-          rand_index = rand( results.length )
-          ids[rand_index] = results[rand_index]["id"]
+        if return_first_record
+          the_scope.first
+        else
+          the_scope.all
         end
-        ids.values
-      end
-
-      def random_ids_via_set(results, max_items)
-        ids = Set.new
-        while ids.length < max_items && ids.length < results.length 
-          ids << results[rand( results.length )]["id"]
-        end
-        ids.to_a
-      end
-
-      def ramdom_ids_via_delete_at(results, max_items)
-        ids = []
-        results_start_length = results.length
-        while ids.length < max_items && ids.length < results_start_length
-          ids << ( results.delete_at(rand( results.length ))["id"] )
-        end
-        ids
-      end
-
-      def random_ids_via_partial_fisher_yates(results, max_items)
-        i = 0
-        # perform swaps only as far as we need
-        while i < max_items && i < results.length
-          # select only from portion of set past current element
-          rand_i = i + rand( results.length - i ) 
-          # swap current element, and picked element
-          results[i], results[rand_i] = results[rand_i], results[i]
-          i += 1
-        end
-        results[0, max_items].collect { |h| h['id'] }
       end
 
     end # Relation
