@@ -1,6 +1,6 @@
 $:.unshift '.';require File.dirname(__FILE__) + '/test_helper'
 
-class RandumbTest < Test::Unit::TestCase
+class RandomModelTest < Test::Unit::TestCase
   
   context "no records in the table" do
     setup do
@@ -10,8 +10,6 @@ class RandumbTest < Test::Unit::TestCase
     should "should return empty array" do
       assert_equal 0, Artist.count
       assert_equal nil, Artist.random
-      assert_equal [], Artist.random(1)
-      assert_equal nil, Artist.limit(50).random
     end
     
   end

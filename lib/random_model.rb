@@ -4,43 +4,31 @@ require 'active_record/relation'
 module Randumb
   # https://github.com/rails/rails/blob/master/activerecord/lib/active_record/relation/query_methods.rb
   module ActiveRecord
-    
     module Relation
-      
-      def random(max_items = nil)
-        return_first_record = max_items.nil? # see return switch at end
-        max_items ||= 1
+
+      def random
         relation = clone
-      
+
         if connection.adapter_name =~ /sqlite/i || connection.adapter_name =~ /postgres/i
-          rand_syntax = "RANDOM()"
+          rand_syntax = "(select floor(RANDOM() * (select max(id) from #{relation.table_name})))"
         elsif connection.adapter_name =~ /mysql/i
-          rand_syntax = "RAND()"
+          rand_syntax = "(select floor(RAND() * (select max(id) from #{relation.table_name})))"
         else
           raise Exception, "ActiveRecord adapter: '#{connection.adapter_name}' not supported by randumb.  Send a pull request or open a ticket: https://github.com/spilliton/randumb"
         end
 
-        the_scope = relation.order(rand_syntax)
-        the_scope = the_scope.limit(max_items) unless relation.limit_value && relation.limit_value < max_items
-                
-        # return first record if method was called without parameters
-        if return_first_record
-          the_scope.first
-        else
-          the_scope.all
-        end
+        the_scope = relation.where("id = "+rand_syntax)
       end
 
     end # Relation
-    
+
     module Base
       # Class method
-      def random(max_items = nil)
-        relation.random(max_items)
+      def random
+        relation.random
       end
-    end 
-    
-    
+    end
+
   end # ActiveRecord
 end # Randumb
 

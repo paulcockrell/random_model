@@ -8,7 +8,7 @@ require 'active_record'
 require 'active_support/dependencies'
 require 'active_support/core_ext/logger'
 # require 'active_record/fixtures'
-require 'randumb'
+require 'random_model'
 
 MODELS_PATH = File.join(File.dirname(__FILE__), 'models')
 
@@ -23,8 +23,8 @@ in_memory = config[driver]["database"] == ":memory:"
     
 # http://about.travis-ci.org/docs/user/database-setup/
 commands = {
-  "mysql"    => "mysql -e 'create database randumb_test;'",
-  "postgres" => "psql -c 'create database randumb_test;' -U postgres"
+  "mysql"    => "mysql -e 'create database random_model_test;'",
+  "postgres" => "psql -c 'create database random_model_test;' -U postgres"
 }
 %x{#{commands[driver] || true}}
     
